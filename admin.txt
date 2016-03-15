@@ -1,0 +1,177 @@
+*** Settings ***
+Resource          super.txt
+
+*** Keywords ***
+UserFormEnter with Subdomain
+    [Arguments]    ${SUBDOMAIN}
+    [Documentation]    Select the user subdomain
+    Sleep    5
+    Select From List    ${list.adminusers.subdomain}    ${SUBDOMAIN}
+    Sleep    5
+    Wait Until Page Contains Element    ${link.adminUsers.add}    30
+    Click Element    ${link.adminUsers.add}
+    Wait Until Page Contains Element    ${text.addUser.userId}    1m
+
+AddUserEnter with userID
+    [Arguments]    ${USERID}    ${ROLE}    ${EMAIL}    ${PWD}    ${PWD CONFIRM}
+    [Documentation]    Enter the user details in add user form
+    Wait Until Page Contains Element    ${text.addUser.userId}    30
+    Input Text    ${text.addUser.userId}    ${USERID}
+    Select From List    ${list.adduser.role}    ${ROLE}
+    Input Text    ${text.addUser.email}    ${EMAIL}
+    Input Text    ${text.addUser.password}    ${PWD}
+    Input Text    ${text.addUser.reEnterPassword}    ${PWD CONFIRM}
+    Click Element    ${link.addUser.addUser}
+    Wait Until Page Contains    New user    30
+
+AddUserEnter with Close
+    [Documentation]    Close the add user form
+    Click Element    ${link.addUser.close}
+
+UserFormValidate with userID
+    [Arguments]    ${USERID}    ${EMAIL}    ${ROLE}    ${SUBDOMAIN}
+    [Documentation]    Validate the add user form
+    ${colNames}=    Set Variable    ${USERID}    ${EMAIL}    ${ROLE}    ${SUBDOMAIN}
+    Table Verify Matching Row Values    ${table.matchingRows}    ${USERID}    ${colNames}    "Check MisMatch"
+
+SearchUser
+    [Arguments]    ${USERID}    ${ROLE}    ${SUBDOMAIN}
+    [Documentation]    Search for the user
+    Input Text    ${text.adminUsers.find}    ${USERID}
+    Select From List    ${list.adminusers.in}    User ID
+    Select From List    ${list.adminusers.role}    ${ROLE}
+    Select From List    ${list.adminusers.subdomain}    ${SUBDOMAIN}
+    Click Element    ${link.adminUsers.showResults}
+    Comment    Wait For Ajax    10
+
+AdminMenuSelect
+    [Arguments]    ${menuitem}
+    [Documentation]    Select sub menu under Admin
+    Comment    Wait For Ajax    30
+    Click Element    ${link.admin.${menuitem}}
+    Wait Until Page Contains Element    ${list.adminusers.subdomain}    1000
+
+ExportAdminConfiguration
+    [Arguments]    ${utilityname}    ${downloadfilepath}
+    Remove File    ${downloadfilepath}
+    Wait Until Page Contains Element    ${label.utility.${utilityname}}    30s
+    Wait Until Page Contains Element    ${button.adminConfigurationExport.${utilityname}}    2s
+    Click Element    ${button.adminConfigurationExport.${utilityname}}
+    ${bStatus}=    Close Alert Message
+    sleep    2s
+    File Should Exist    ${downloadfilepath}
+
+ImportAdminConfiguration
+    [Arguments]    ${utilityname}    ${importfilepath}    ${expdupcase}
+    Wait Until Page Contains Element    ${label.utility.${utilityname}}    30s
+    Wait Until Page Contains Element    ${button.adminConfigurationImport.${utilityname}}    2s
+    sleep    2s
+    Run Keyword And Continue On Failure    Simulate    ${button.adminConfigurationImport.${utilityname}}    click
+    Wait Until Page Contains Element    ${label.importDialog}    2m    Import dialog is not displayed
+    ${id}=    Get Element Attribute Value    //div[@class="rich-fileupload-button-border"]/div@id
+    Execute Javascript    document.getElementsByClassName('rich-fileupload-button rich-fileupload-font')[0].childNodes[1].setAttribute('style','')
+    Execute Javascript    document.getElementsByClassName('rich-fileupload-button rich-fileupload-font')[0].childNodes[1].childNodes[0].className=''
+    Input File Name    ${label.importFilepath}    ${importfilepath}
+    Wait Until Page Contains Element    ${label.importDialog.done}    240s    Failed importing file or importing file is still in processing
+    sleep    10s
+    ${actualdupcase}    CommonLibrary.Get Text    ${label.importDialog.actualDuplicatecase}
+    ${actualunknowncase}    CommonLibrary.Get Text    ${label.importDialog.actualUnknowncase}
+    Run Keyword And Continue On Failure    Should Be Equal As Integers    ${actualdupcase}    ${expdupcase}    Imported duplicate cases doesn't match expected. Actual duplicate cases imported: ${actualdupcase}, Expected duplicate cases:${expdupcase}
+    Log    Imported duplicate cases count matches the expected count. Duplicate cases imported: ${actualdupcase}
+    Run Keyword And Continue On Failure    Should Be Equal As Integers    ${actualunknowncase}    1    Imported unknown user cases doesn't match expected. Actual unknown user cases imported: ${actualunknowncase}, Expected unknown user cases:1
+    Log    Imported unknown user cases count matches the expected count. Unknown user cases imported:${actualunknowncase}
+    Simulate    ${button.importDialog.close}    click
+
+Validate Column Order Of Processing Status Table
+    [Arguments]    ${columnNumber}
+    ${listOfFirstTenValues}=    Get First Ten Values Of Research Table    ${columnNumber}    Process
+    ${listOfFirstTenValuesBeforSorting}=    Copy List    ${listOfFirstTenValues}
+    ${statusOfOrderArrow}=    Get Element Attribute Value    //div[@id='ajs_T_ProcessStatsTable_tData_F_ProcessStatsTable_tData_title_R0C${columnNumber}']/div[2]@style
+    ${statusOfOrder}=    String Should Contain    ${statusOfOrderArrow}    a1.gif
+    Comment    Run Keyword If    '${statusOfOrder}'=='True'    Sort List    ${listOfFirstTenValues}
+    Run Keyword If    '${statusOfOrder}'!='True'    Sort List    ${listOfFirstTenValues}
+    Run Keyword If    '${statusOfOrder}'!='True'    Reverse List    ${listOfFirstTenValues}
+    Lists Should Be Equal    ${listOfFirstTenValuesBeforSorting}    ${listOfFirstTenValues}
+    Press End Key    ${table.processStats.matchingRows}
+    Sleep    2s
+    : FOR    ${iCount}    IN RANGE    2    11
+    \    Press Up Key    ${table.processStats.matchingRows}/tbody/tr/td[3]/div[contains(@id,'C2')]/div[contains(@class,'Selected')]
+    ${listOfFirstTenValues}=    Get First Ten Values Of Research Table    ${columnNumber}    Process
+    ${listOfFirstTenValuesBeforSorting}=    Copy List    ${listOfFirstTenValues}
+    ${statusOfOrderArrow}=    Get Element Attribute Value    //div[@id='ajs_T_ProcessStatsTable_tData_F_ProcessStatsTable_tData_title_R0C${columnNumber}']/div[2]@style
+    ${statusOfOrder}=    String Should Contain    ${statusOfOrderArrow}    a1.gif
+    Run Keyword If    '${statusOfOrder}'=='True'    Sort List    ${listOfFirstTenValues}
+    Run Keyword If    '${statusOfOrder}'!='True'    Sort List    ${listOfFirstTenValues}
+    Run Keyword If    '${statusOfOrder}'!='True'    Reverse List    ${listOfFirstTenValues}
+    Should Be Equal    ${listOfFirstTenValuesBeforSorting}    ${listOfFirstTenValues}
+
+Highlight Row In Admin Page
+    Comment    Verifies the Mouse Hovered record from the search results table on Admin page is Highlighted in grey color.
+    Open Context Menu    //td[@id='ajs_T_RiskAppUserTable_tData_F_RiskAppUserTable_tData_th_R0C1']/div/div
+    Click Element    ${link.dashboard.contextMenu.restoreDefaultColumns}
+    Sleep    1s
+    ${textData}=    Get Cell Value    ${table.matchingRows}    4    3
+    Mouse Over On Table Row    ${table.admin.matchingRows}    4    ${textData}
+    ${expectedHighlightedRowNum}=    Table Get Row No    ${table.admin.matchingRows}    4    ${textData}
+    ${classVal}=    Get Element Attribute Value    //td[@id='ajs_T_RiskAppUserTable_tData_F_RiskAppUserTable_tData_body']/table/tbody/tr/td/div/div[${expectedHighlightedRowNum}]@class
+    Should Contain    ${classVal}    Highlighted
+
+Upload File
+    : FOR    ${iterations}    IN RANGE    1    20
+    \    Mouse Over    //div[contains(@class,'rich-fileupload-button-border')]/div
+    \    Selenium2Library.Mouse Down    //div[contains(text(),'Get import file')]
+    \    Selenium2Library.Mouse Up    //div[contains(text(),'Get import file')]
+    \    ${status}    Run Keyword And Return Status    Wait For Active Window    File Upload    \    10
+    \    Sleep    4s
+    \    Run Keyword If    ${status}==True    Exit For Loop
+
+Upload table by manual import
+    [Arguments]    ${executeDirectory}
+    Wait For Element Visible    //a[contains(text(),'Import')]    ${DELAY}
+    Wait And Click Element    //a[contains(text(),'Import')]
+    Sleep    4s
+    Wait For Element Visible    //div[contains(text(),'Get import file')]/following-sibling::div/input    3s
+    Comment    Click the "+ Get import file" \ button to upload you eui file.
+    UploadFile
+    Comment    Send    !{F4}
+    File Should Exist    ${executeDirectory}    Test data not available to import.Please change execute directory
+    Choose File    //div[contains(text(),'Get import file')]/following-sibling::div/input    ${executeDirectory}
+    Sleep    3s
+    Win Close    File Upload
+    : FOR    ${iCounter}    IN RANGE    1    100
+    \    ${bStatus}=    Wait For Element Visible    //div[@class='rich-fileupload-list-overflow ']//a[contains(text(),'Cancel')]    7s
+    \    Run Keyword If    '${bStatus}'!='True'    Exit For Loop
+    \    Run Keyword If    '${bStatus}'!='True'    Sleep    ${DELAY5}
+    \    Run Keyword If    ${bStatus}    Sleep    ${DELAY5}
+    Sleep    3s
+    ${submitStatus}    Wait For Element Visible    //a[contains(text(),'Submit')]    10s    submit button is not in visible state
+    Comment    Run Keyword If    ${submitStatus}    Click Element    //a[contains(text(),'Submit')]
+    Comment    Run Keyword If    ${submitStatus}    Wait For Element Invisible    //a[contains(text(),'Submit')]
+    Comment    ${submitStatus}    Wait For Element Visible    //a[contains(text(),'Submit')]    6s
+    Run Keyword If    ${submitStatus}    Selenium2Library.Mouse Down    //a[contains(text(),'Submit')]
+    Run Keyword If    ${submitStatus}    Selenium2Library.Mouse Up    //a[contains(text(),'Submit')]
+    Run Keyword If    ${submitStatus}    Wait For Element Invisible    //a[contains(text(),'Submit')]
+    ${startedEstCurrentTime}=    Get EST Current Time
+    Wait For Element Visible    //div[@id='euiInfo']/div/table/tbody/tr[3]
+    Comment    Click the Submit button and then click on \ Refresh button.
+    : FOR    ${iCounter}    IN RANGE    1    1000
+    \    ${text}=    CommonLibrary.Get Text    //div[@id='euiInfo']/div/table/tbody/tr[3]
+    \    ${bStatus}=    String Should Contain    ${text}    completed
+    \    Run Keyword If    '${bStatus}'!='True'    Wait For Element Visible    //a[contains(text(),'Refresh')]
+    \    Run Keyword If    '${bStatus}'!='True'    Click Element    //a[contains(text(),'Refresh')]
+    \    Run Keyword If    '${bStatus}'!='True'    Sleep    5s
+    \    ${completedEstCurrentTime}=    Run Keyword If    ${bStatus}    Get EST Current Time
+    \    Run Keyword If    ${bStatus}    Exit For Loop
+    Sleep    ${DELAY5}
+    Comment    Validate the timestamp for started and completed is correct.
+    ${visibleStatusOfAcctDetails}=    Wait For Element Visible    //div[@id='accountExternalInfo']    ${DELAY}
+    Run Keyword If    '${visibleStatusOfAcctDetails}'!='True'    Fail    Account detail table is not displayed after cliccking on Refresh button.
+
+import file in admin page
+    [Arguments]    ${executeDirectory}
+    : FOR    ${iCounter}    IN RANGE    1    10
+    \    Upload table by manual import    ${executeDirectory}
+    \    ${tableStatus}=    CommonLibrary.Get Text    //div[@id='euiInfo']//h4
+    \    ${tableDefineStaus}=    String Should Contain    ${tableStatus}    Table is not defined
+    \    Sleep    ${DELAY5}
+    \    Run Keyword If    '${tableDefineStaus}'=='False'    Exit For Loop

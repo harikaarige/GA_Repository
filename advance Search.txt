@@ -1,0 +1,46 @@
+*** Settings ***
+Resource          super.txt
+
+*** Keywords ***
+Expand or Collapse Advance Search Icon
+    [Documentation]    Verify The Expand And Collapse Advance Search Fields Using \ Advance Search Icon
+    ${actulaAdvnceSrchLbl}=    CommonLibrary.Get Text    ${button.reports.advanceSearch}
+    ${expectedAdvnceSrchLbl}=    Set Variable    Advanced Search
+    Run Keyword And Continue On Failure    Should Be Equal As Strings    ${actulaAdvnceSrchLbl}    ${expectedAdvnceSrchLbl}
+    Comment    Expand advance search filter section by clciking on icon
+    Click Element    ${button.reports.advanceSearch}
+    Wait For Element Visible    ${button.advanceSearch.hideAdvancedFilters}    ${DELAY}
+    Run Keyword And Continue On Failure    Page Should Contain Element    ${label.reports.advanceSearchWindow}    Advanced Filter Section is not displayed
+    Comment    Collapse advance search filter section by clciking on icon
+    Wait Until Page Contains Element    ${label.reports.advanceSearchHide}
+    Click Element    ${label.reports.advanceSearchHide}
+    Wait For Element Visible    ${button.advancesearch}    ${DELAY}
+    Run Keyword And Continue On Failure    Page Should Contain Element    ${label.reports.showAdvancedFilters}    Advanced Filter Section is not displayed
+
+Validating IP Address
+    [Arguments]    ${invalidipaddress}    ${ipaddress}
+    [Documentation]    Verify By Entering Valid and Invalid Ip Address into IP ADDRESS Field and verifies the Alert Message is displayed or not.
+    Comment    Enters an invalid Ip Address into IP ADDRESS Field and verifies the Alert Message 'Invalid ip or network addresses' is displayed or not.
+    Click Element    ${button.alerts.advanceSearch}
+    Sleep    4s
+    Wait Until Page Contains Element    ${text.advanceSearch.ipAddress}    20s
+    Input Text    ${text.advanceSearch.ipAddress}    ${invalidipaddress}
+    Click Element    ${button.alerts.showResults}
+    Sleep    6s
+    ${textMessage}=    CommonLibrary.Get Text    //form[@id='warnForm']//span
+    String Should Contain    ${textMessage}    Invalid IP or Network address specification.
+    Comment    Wait For Ajax    3
+    Wait And Click Element    //input[@id='warnForm:applWarningClose']
+    Wait For Element Invisible    //input[@id='warnForm:applWarningClose']    ${DELAY5}
+    Comment    Enters a Valid IP Address into IP ADDRESS field and verifies the Graph s displayed for the selected graph type or not.
+    Input Text    ${text.advanceSearch.ipAddress}    ${ipaddress}
+    Click Element    ${button.alerts.showResults}
+    Sleep    10s
+    ${bstatus}=    Verify Element Present    ${label.reports.dataTable.noMatchingData}
+    Run Keyword If    ${bstatus}==True    Fail    No Matching Data Found
+    Run Keyword If    ${bstatus}==True    Close Browser
+    Mouse Over    ${table.reports.IPTypeGraphContextMenu}
+    Sleep    2s
+    Selenium2Library.Open Context Menu    ${table.reports.IPTypeGraphContextMenu}
+    ${bstatus}=    Verify Item In Context Menu Disabled    Line Scatter
+    Run Keyword If    ${bstatus}!=True    Fail    Graph is not displayed for the selected graph type Line Scatter
